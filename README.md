@@ -5,7 +5,7 @@ This app reveals the power of adaptive UI both for phone and tablet devices.
 
 *Popular Movies* was highly evaluated by certified Udacity code reviewer and was graded as "Exceeds Specifications".
 
-<img src= "https://github.com/JeffGoodrich9791/Popular-Movies-Stage-1/blob/master/PopularMoviesApp1" />
+<img src= "https://github.com/JeffGoodrich9791/Popular Movies Stage 1/blob/master/PopularMoviesApp1" />
 
 ## Features
 
@@ -15,7 +15,7 @@ With the app, you can:
 * Watch trailers
 * Read reviews
 
-<img src= "https://github.com/JeffGoodrich9791/Popular-Movies-Stage-1/blob/master/PopularMoviesApp2" />
+<img src= "https://github.com/JeffGoodrich9791/Popular Movies Stage 1/blob/master/PopularMoviesApp2" />
 
 ## Utilizing the Source API
 
