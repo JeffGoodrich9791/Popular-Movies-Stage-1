@@ -5,7 +5,7 @@ This app reveals the power of adaptive UI both for phone and tablet devices.
 
 *Popular Movies* was highly evaluated by certified Udacity code reviewer and was graded as "Exceeds Specifications".
 
-
+<img src= "https://github.com/JeffGoodrich9791/Popular-Movies-Stage-1/blob/master/PopularMoviesApp1" />
 
 ## Features
 
@@ -15,20 +15,35 @@ With the app, you can:
 * Watch trailers
 * Read reviews
 
-## How to Work with the Source
+<img src= "https://github.com/JeffGoodrich9791/Popular-Movies-Stage-1/blob/master/PopularMoviesApp2" />
+
+## Utilizing the Source API
 
 This app uses [The Movie Database](https://www.themoviedb.org/documentation/api) API to retrieve movies.
 You must provide your own API key in order to build the app. When you get it, just paste it to:
 
+
+    public class MovieUrlUtils {
+
+    /**
+     * Put your api key here ****************
+     */
+    public static final String API_KEY = "37a185f3d9ad9b6d0c3fbadd59bd9353";
+    /**
+     * **************************************
+     */
+    private static final String LOG_TAG = MovieUrlUtils.class.getSimpleName();
+    private static final String MOVIE_QUERY_API = "api_key";
+    private static final String MOVIE_BASE_URL = "https://api.themoviedb.org/3/movie/";
+    ```
+
 ## Libraries
 
 * [ButterKnife](https://github.com/JakeWharton/butterknife)
-* [Dagger](https://github.com/square/dagger)
 * [Retrofit](https://github.com/square/retrofit)
 * [SQLBrite](https://github.com/square/sqlbrite)
 * [RxJava](https://github.com/ReactiveX/RxJava)
 * [RxAndroid](https://github.com/ReactiveX/RxAndroid)
-* [Glide](https://github.com/bumptech/glide)
-* [GlidePalette](https://github.com/florent37/GlidePalette)
+* [Picasso](https://github.com/bumptech/glide)
 * [Android-ObservableScrollView](https://github.com/ksoichiro/Android-ObservableScrollView)
 * [Gradle Retrolambda Plugin](https://github.com/evant/gradle-retrolambda)
