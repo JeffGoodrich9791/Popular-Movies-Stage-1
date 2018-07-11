@@ -20,7 +20,8 @@ With the app, you can:
 ## Utilizing the Source API
 
 This app uses [The Movie Database](https://www.themoviedb.org/documentation/api) API to retrieve movies.
-You must provide your own API key in order to build the app. When you get it, just paste it to:
+You must provide your own API key in order to build the app. Upon fetching an API Key, all you have to do is insert your 
+API Key into this section of code in the MovieUrlUitls.java file. 
 
 
     public class MovieUrlUtils {
@@ -28,7 +29,7 @@ You must provide your own API key in order to build the app. When you get it, ju
     /**
      * Put your api key here ****************
      */
-    public static final String API_KEY = "37a185f3d9ad9b6d0c3fbadd59bd9353";
+    public static final String API_KEY = "YOUR API KEY HERE";
     /**
      * **************************************
      */
