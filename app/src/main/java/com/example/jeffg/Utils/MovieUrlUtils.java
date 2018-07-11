@@ -16,7 +16,7 @@ public class MovieUrlUtils {
     /**
      * Put your api key here ****************
      */
-    public static final String API_KEY = "37a185f3d9ad9b6d0c3fbadd59bd9353";
+    public static final String API_KEY = "YOUR API KEY HERE";
     /**
      * **************************************
      */
