@@ -1,19 +1,20 @@
 package com.example.jeffg.popularmoviesapp;
 
 import android.annotation.SuppressLint;
-import android.app.ActivityOptions;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.annotation.RequiresApi;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -24,12 +25,18 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.example.jeffg.Utils.MovieJsonUtils;
 import com.example.jeffg.Utils.MovieUrlUtils;
 import com.example.jeffg.adapter.MovieAdapter;
+import com.example.jeffg.adapter.MovieAdapterFavorites;
+import com.example.jeffg.data.MovieContract;
 import com.example.jeffg.model.Movie;
+import com.example.jeffg.interfaces.AsynTaskCompleteListeningMovie;
+import com.example.jeffg.Utils.FetchMyDataTask;
 
-import java.net.URL;
+
+
+
+import java.util.ArrayList;
 
 
 public class MainActivity extends AppCompatActivity implements MovieAdapter.MovieClickListener {
@@ -37,15 +44,30 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
     private static final String CALLBACK_QUERY = "callbackQuery";
     private static final String CALLBACK_NAMESORT= "callbackNamesort";
-    private String queryMovie = "popular";
+    private static final String CALLBACK_FAVORITES = "callbackFavorites";
+
+    public static  String queryMovie = "popular";
     private String nameSort = "Popular Movies";
     private Movie[] mMovie = null;
-    private RecyclerView mRecyclerView;
-    private ProgressBar progressBar;
-    private TextView tv_error;
-    private Button btn_retry;
+    public static boolean isFavorited;
+    private MovieAdapterFavorites movieAdapter;
+
+    public static ArrayList<String> dataDetail = new ArrayList<>();
+    @SuppressLint("StaticFieldLeak")
+    public static Context mContext;
+    @SuppressLint("StaticFieldLeak")
+    public static RecyclerView mRecyclerView;
+    @SuppressLint("StaticFieldLeak")
+    public static ProgressBar progressBar;
+    @SuppressLint("StaticFieldLeak")
+    public static TextView tv_error;
+    @SuppressLint("StaticFieldLeak")
+    public static Button btn_retry;
+    @SuppressLint("StaticFieldLeak")
+    public static TextView tv_no_data;
 
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,6 +80,9 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
 
         progressBar = findViewById(R.id.pb_main);
         tv_error = findViewById(R.id.tv_error);
+        tv_no_data = findViewById(R.id.tv_no_data);
+        tv_no_data.setVisibility(View.INVISIBLE);
+        mContext = getApplicationContext();
 
         setTitle(nameSort);
         if (!isOnline()) {
@@ -66,18 +91,52 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
         }
 
         if (savedInstanceState != null){
+            if (savedInstanceState.containsKey(CALLBACK_FAVORITES)){
+                nameSort= savedInstanceState.getString(CALLBACK_FAVORITES);
+                queryMovie = "favorites";
+                setTitle(nameSort);
+                loadDataFavorites();
+                return;
+            }
+
             if (savedInstanceState.containsKey(CALLBACK_QUERY) || savedInstanceState.containsKey(CALLBACK_NAMESORT)){
                 queryMovie = savedInstanceState.getString(CALLBACK_QUERY);
                 nameSort = savedInstanceState.getString(CALLBACK_NAMESORT);
                 setTitle(nameSort);
-                new  MovieFechtTask().execute(queryMovie);
+                new FetchMyDataTask(this, new MovieFetchTaskCompleteListener()).execute(queryMovie);
                 return;
             }
+
+            if (nameSort.equals("Favorites"))return;
+            new FetchMyDataTask(this, new MovieFetchTaskCompleteListener()).execute(queryMovie);
         }
-        new MovieFechtTask().execute(queryMovie);
+
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public void loadDataFavorites(){
+        loadFavorites();
+        movieAdapter = new MovieAdapterFavorites(DetailActivity.arrayListMovies, this, MainActivity.this);
+        movieAdapter.notifyDataSetChanged();
+        mRecyclerView.setAdapter(movieAdapter);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (isFavorited){
+            String nameSortSaved = nameSort;
+            outState.putString(CALLBACK_FAVORITES, nameSortSaved);
+            return;
+        }
+        String queryMovieSaved = queryMovie;
+        String nameSortSaved = nameSort;
+        outState.putString(CALLBACK_QUERY, queryMovieSaved);
+        outState.putString(CALLBACK_NAMESORT, nameSortSaved);
+
+
+    }
     private boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         assert cm != null;
@@ -89,10 +148,11 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu, menu);
+        inflater.inflate(R.menu.menu_main, menu);
         return true;
     }
 
+    @TargetApi(Build.VERSION_CODES.O)
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (!isOnline()) return false;
@@ -100,26 +160,100 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
         int id = item.getItemId();
         switch (id) {
             case R.id.popularity:
+                isFavorited=false;
+                tv_no_data.setVisibility(View.INVISIBLE);
                 queryMovie = "popular";
-                new MovieFechtTask().execute(queryMovie);
+                new FetchMyDataTask(this, new MovieFetchTaskCompleteListener()).execute(queryMovie);
                 nameSort = "Popular Movies";
                 setTitle(nameSort);
                 break;
             case R.id.top_rated:
+                isFavorited=false;
+                tv_no_data.setVisibility(View.INVISIBLE);
                 queryMovie = "top_rated";
-                new MovieFechtTask().execute(queryMovie);
+                new FetchMyDataTask(this, new MovieFetchTaskCompleteListener()).execute(queryMovie);
                 nameSort = "Top Rated Movies";
+                setTitle(nameSort);
+                break;
+            case R.id.favorites:
+                isFavorited= true;
+                nameSort= "Favorites";
+                queryMovie = "favorites";
+                loadFavorites();
                 setTitle(nameSort);
                 break;
         }
         return super.onOptionsItemSelected(item);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public  void loadFavorites() {
+        dataDetail.clear();
 
-    private void errorNetworkApi() {
+        Cursor mCursor = getContentResolver().query(MovieContract.MovieEntry.CONTENT_URI, null, null, null, MovieContract.MovieEntry._ID);
+
+        if (mCursor != null){
+            while (mCursor.moveToNext()){
+                dataDetail.add(mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_IMAGE)));
+            }
+        }
+        assert mCursor != null;
+        mCursor.close();
+        loadData();
+
+        mRecyclerView.setVisibility(View.VISIBLE);
+        hideProgressAndTextview();
+
+        movieAdapter = new MovieAdapterFavorites(DetailActivity.arrayListMovies, this, MainActivity.this);
+        movieAdapter.notifyDataSetChanged();
+        mRecyclerView.setAdapter(movieAdapter);
+        if (nameSort.equals("Favorites")){
+            if (dataDetail.size()==0){
+                tv_no_data.setVisibility(View.VISIBLE);
+                tv_no_data.setTextColor(ContextCompat.getColor(this, R.color.secondary_text));
+            }else {
+                tv_no_data.setVisibility(View.INVISIBLE);
+            }
+        }
+
+
+    }
+
+    private void loadData() {
+        DetailActivity.arrayListMovies.clear();
+        DetailActivity.movieFav=null;
+        Cursor mCursor = getContentResolver().query(MovieContract.MovieEntry.CONTENT_URI, null
+                , null, null,
+                MovieContract.MovieEntry._ID);
+
+        if (mCursor != null) {
+            while (mCursor.moveToNext()) {
+                DetailActivity.arrayListMovies.add(new String[]{
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_TITLE)),
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_IMAGE)),
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_RELEASE)),
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_RATING)),
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_PLOT)),
+                        mCursor.getString(mCursor.getColumnIndex(MovieContract.MovieEntry.COLUMN_ID))});
+
+            }
+            DetailActivity.movieFav= DetailActivity.arrayListMovies.toArray(new String[DetailActivity.arrayListMovies.size()][5]);
+            mCursor.close();
+
+        }
+    }
+
+
+    public static void errorNetworkApi() {
         progressBar.setVisibility(View.INVISIBLE);
         tv_error.setVisibility(View.VISIBLE);
+        tv_error.setTextColor(ContextCompat.getColor(mContext, R.color.secondary_text));
         btn_retry.setVisibility(View.VISIBLE);
+    }
+
+    public static void preExecute(){
+        mRecyclerView.setVisibility(View.INVISIBLE);
+        progressBar.setVisibility(View.VISIBLE);
     }
 
     public void clickRetry(View view) {
@@ -131,94 +265,83 @@ public class MainActivity extends AppCompatActivity implements MovieAdapter.Movi
         queryMovie = "popular";
         btn_retry.setVisibility(View.INVISIBLE);
         tv_error.setVisibility(View.INVISIBLE);
-        new MovieFechtTask().execute(queryMovie);
+        new FetchMyDataTask(this, new MovieFetchTaskCompleteListener()).execute(queryMovie);
     }
 
-    private void hideProgressAndTextview() {
-        progressBar.setVisibility(View.INVISIBLE);
-        tv_error.setVisibility(View.INVISIBLE);
-    }
 
-    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onClickMovie(int position) {
+
 
         if (!isOnline()) {
             mRecyclerView.setVisibility(View.INVISIBLE);
             errorNetworkApi();
             return;
         }
-
-        Intent intent = new Intent(this, com.example.jeffg.popularmoviesapp.DetailActivity.class);
-        intent.putExtra("title", mMovie[position].getmTitle());
-        intent.putExtra("poster", mMovie[position].getmMoviePoster());
-        intent.putExtra("plot", mMovie[position].getmPlot());
-        intent.putExtra("rating", mMovie[position].getmRating());
-        intent.putExtra("releaseDate", mMovie[position].getmReleaseDate());
-        startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(this).toBundle());
-    }
-
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        String queryMovieSaved = queryMovie;
-        String nameSortSaved = nameSort;
-        outState.putString(CALLBACK_QUERY, queryMovieSaved);
-        outState.putString(CALLBACK_NAMESORT, nameSortSaved);
-
-    }
-
-    @SuppressLint("StaticFieldLeak")
-    private class MovieFechtTask extends AsyncTask<String, Void, Movie[]> {
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-
-            mRecyclerView.setVisibility(View.INVISIBLE);
-            progressBar.setVisibility(View.VISIBLE);
+        if (nameSort.equals("Favorites")){
+            isFavorited=true;
+            Intent intentToDetail = new Intent(this, DetailActivity.class);
+            intentToDetail.putExtra("fromFavorites", isFavorited);
+            intentToDetail.putExtra("sendPosition", position);
+            startActivity(intentToDetail);
+            isFavorited=false;
+            return;
         }
 
-        @Override
-        protected Movie[] doInBackground(String... strings) {
-            if (!isOnline()) {
-                errorNetworkApi();
-                return null;
-            }
-            if (MovieUrlUtils.API_KEY.equals("")) {
-                errorNetworkApi();
-                tv_error.setText(R.string.missing_api_key);
-                btn_retry.setVisibility(View.INVISIBLE);
-                return null;
-            }
-            URL movieUrl = MovieUrlUtils.buildUrl(strings[0]);
+        Intent intentToDetail = new Intent(this, DetailActivity.class);
+        intentToDetail.putExtra("sendData", (Parcelable) mMovie[position]);
+        startActivity(intentToDetail);
+    }
 
-            String movieResponse;
-            try {
-                movieResponse = MovieUrlUtils.getResponseFromHttp(movieUrl);
-                mMovie = MovieJsonUtils.parseJsonMoview(movieResponse);
-            } catch (Exception e) {
 
-                e.printStackTrace();
-            }
-            return mMovie;
-        }
+    private void hideProgressAndTextview() {
+        progressBar.setVisibility(View.INVISIBLE);
+        tv_error.setVisibility(View.INVISIBLE);
+    }
+
+
+
+
+    public class MovieFetchTaskCompleteListener implements AsynTaskCompleteListeningMovie {
 
         @Override
-        protected void onPostExecute(Movie[] movies) {
-            new MovieFechtTask().cancel(true);
-            if (movies != null) {
+        public void onTaskComplete(Movie[] result) {
+            if (result != null) {
                 mRecyclerView.setVisibility(View.VISIBLE);
                 hideProgressAndTextview();
-                mMovie = movies;
-                MovieAdapter movieAdapter = new MovieAdapter(movies, MainActivity.this, MainActivity.this);
+                mMovie = result;
+                MovieAdapter movieAdapter = new MovieAdapter(mMovie, MainActivity.this, MainActivity.this);
                 mRecyclerView.setAdapter(movieAdapter);
-
-            } else {
-                Log.e(LOG_TAG, "Problems with adapter");
             }
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (!isOnline()){
+            mRecyclerView.setVisibility(View.INVISIBLE);
+            errorNetworkApi();
+            return;
+        }
+        tv_no_data.setVisibility(View.INVISIBLE);
+        if (DetailActivity.fromFavorites || isFavorited){
+            isFavorited= true;
+            nameSort= "Favorites";
+            loadDataFavorites();
+            setTitle(nameSort);
+        }else if (queryMovie.equals("top_rated")){
+            isFavorited=false;
+            nameSort = "Top Rated Movies";
+            setTitle(nameSort);
         }
 
     }
 
 }
+
+
+

@@ -42,6 +42,36 @@ public class MovieUrlUtils {
         return url;
     }
 
+    public static URL buildUrlTrailers(String idTrailer, String trailer){
+        Uri uri = Uri.parse(MOVIE_BASE_URL.concat(idTrailer.concat(trailer)))
+                .buildUpon()
+                .appendQueryParameter(MOVIE_QUERY_API, API_KEY)
+                .build();
+        URL url= null;
+        try {
+            url = new URL(uri.toString());
+        }catch (MalformedURLException e){
+            Log.e(LOG_TAG, "Problems create url", e);
+        }
+        return url;
+    }
+
+    public static URL buildUrlReview( String idMovie, String reviews){
+        Uri uri = Uri.parse(MOVIE_BASE_URL.concat(idMovie).concat(reviews))
+                .buildUpon()
+                .appendQueryParameter(MOVIE_QUERY_API, API_KEY)
+                .build();
+        URL url= null;
+        try {
+            url= new URL(uri.toString());
+
+        } catch (MalformedURLException e) {
+            Log.e(LOG_TAG, "Problems create url", e);
+        }
+
+        return url;
+    }
+
     public static String getResponseFromHttp(URL url) throws IOException {
         HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
         try {
